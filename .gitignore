@@ -172,3 +172,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+HOW_TO_BUILD_CLAUDE_CODE.md
