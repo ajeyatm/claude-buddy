@@ -7,8 +7,16 @@ from typing import TYPE_CHECKING, Literal
 
 from openai import OpenAI
 
-if TYPE_CHECKING:
-    from openai.types.chat import (
+# if TYPE_CHECKING:
+#     from openai.types.chat import (
+#         ChatCompletionMessageFunctionToolCall,
+#         ChatCompletionMessageParam,
+#         ChatCompletionToolMessageParam,
+#         ChatCompletionToolUnionParam,
+#         ChatCompletionAssistantMessageParam
+#     )
+
+from openai.types.chat import (
         ChatCompletionMessageFunctionToolCall,
         ChatCompletionMessageParam,
         ChatCompletionToolMessageParam,
@@ -172,7 +180,7 @@ def main():
         #     #     for tc in response_message.tool_calls
         #     # ]
         
-        messages.append(message_dict)
+        messages.append(ChatCompletionAssistantMessageParam(**message_dict))
 
         #Record the assistant's response --> END
         
