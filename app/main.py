@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 API_KEY = os.getenv("OPENROUTER_API_KEY")
 BASE_URL = os.getenv("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
+MODEL = os.getenv("OPENROUTER_MODEL", default="anthropic/claude-haiku-4.5")
 
 TOOL_SPECS : list[ChatCompletionToolUnionParam] = [
                 {
@@ -130,7 +131,7 @@ def main():
     while True:
 
         chat = client.chat.completions.create(
-            model="anthropic/claude-haiku-4.5",
+            model=MODEL,
             messages=messages,
             tools=TOOL_SPECS
         )
