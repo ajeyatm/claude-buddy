@@ -126,7 +126,7 @@ def main():
     content = top_choice.message.content
     tool_calls = top_choice.message.tool_calls
 
-    if content:
+    if not tool_calls and content:
         print(content)
 
     # if not tool_calls or len(tool_calls) == 0:
