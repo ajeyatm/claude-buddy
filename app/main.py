@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 from openai import OpenAI
 
@@ -196,6 +197,31 @@ def main():
                         "role": "tool",
                         "tool_call_id": tc.id,
                         "content": f.read()
+                    }
+                    messages.append(result)
+
+            elif tc.function.name == "Write":
+                args = json.loads(tc.function.arguments)
+                file_path_str = args.get("file_path")
+                content = args.get("content")
+
+                if not file_path_str:
+                    raise RuntimeError("no file_path argument in Write function call")
+                
+                if not content:
+                    raise RuntimeError("no content argument in Write function call")
+                
+                file_path = Path(file_path_str)
+                # Create directories if they don't exist
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+
+                with open(file_path, "w") as f:
+                    result  = f.write(content)
+                
+                    result = {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": f"Successfully wrote to {file_path}"
                     }
                     messages.append(result)
 
