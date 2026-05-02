@@ -129,9 +129,6 @@ def main():
     if content:
         print(content)
 
-    if not tool_calls or not content:
-        raise RuntimeError("no tool calls and no content in message")
-
     if not tool_calls or len(tool_calls) == 0:
         raise RuntimeError("no tool calls in message")
     
