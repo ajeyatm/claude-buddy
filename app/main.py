@@ -129,8 +129,8 @@ def main():
     if content:
         print(content)
 
-    if not tool_calls or len(tool_calls) == 0:
-        raise RuntimeError("no tool calls in message")
+    # if not tool_calls or len(tool_calls) == 0:
+    #     raise RuntimeError("no tool calls in message")
     
     for tc in tool_calls or []:
         if not tc.type == "function":
