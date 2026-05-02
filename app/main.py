@@ -14,13 +14,16 @@ def main():
     p.add_argument("-p", required=True)
     args = p.parse_args()
 
-    messages = [{"role": "user", "content": args.p}]
 
     if not API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY is not set")
 
     client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
+    #Initialize the conversation
+    messages = [{"role": "user", "content": args.p}]
+
+    #agentic loop
     while True:
 
         chat = client.chat.completions.create(
@@ -119,30 +122,64 @@ def main():
             ]
         )
 
+
         if not chat.choices or len(chat.choices) == 0:
             raise RuntimeError("no choices in response")
         
-        top_choice = chat.choices[0]
-        if not top_choice.message:
+        response_message = chat.choices[0].message
+
+        if not response_message:
             raise RuntimeError("no message content in top choice")
         
-        messages.append(top_choice.message.model_dump())
+        #Record the assistant's response --> START
+        '''
+        Whatever message the model returns, add it to your messages array. 
+        If the model wants to use a tool, the response will contain a tool_calls array
+        '''
         
-        content = top_choice.message.content
-        tool_calls = top_choice.message.tool_calls
+        message_dict = response_message.model_dump()
 
-        if not tool_calls and content:
-            print(content)
+        #POSSIBLE ISSUE AND WORK-AROUND: we should be able to just do messages.append(response_message.model_dump()) here, but if for some reason the tool_calls field is not being included in the model_dump output, even though it is present in the response_message object the we'll manually construct the message dict to include the tool_calls field.
+        
+        # message_dict = {
+        #     "role": response_message.role,
+        #     "content": response_message.content,
+        # }
+
+        # if hasattr(response_message, "tool_calls") and response_message.tool_calls:
+        #     message_dict["tool_calls"] = [tc.model_dump() for tc in response_message.tool_calls]
+        #     # message_dict["tool_calls"] = [
+        #     #     {
+        #     #         "id": tc.id,
+        #     #         "type": tc.type,
+        #     #         "function": {
+        #     #             "name": tc.function.name,
+        #     #             "arguments": tc.function.arguments,
+        #     #         },
+        #     #     }
+        #     #     for tc in response_message.tool_calls
+        #     # ]
+        
+        messages.append(message_dict)
+
+        #Record the assistant's response --> END
+        
+        if not message_dict.get("tool_calls"):
+            '''
+             Continue the loop until the model responds without requesting any tools (when tool_calls is missing or empty).
+             At this point, print the final message content to stdout and exit.
+            '''
+            print(response_message.content)
             break
 
-        # if not tool_calls or len(tool_calls) == 0:
-        #     raise RuntimeError("no tool calls in message")
         
-        for tc in tool_calls or []:
+        #Execute tool calls if there are any
+        for tc in response_message.tool_calls or []:
             if not tc.type == "function":
                 raise RuntimeError("tool call is not a function call")
             
             
+            # Execute each requested tool (but do not print their result to stdout)
             if tc.function.name == "Read":
                 args = json.loads(tc.function.arguments)
                 file_path = args.get("file_path")
@@ -154,13 +191,13 @@ def main():
                     raise RuntimeError(f"file_path {file_path} does not exist or is not a file")
                 
                 with open(file_path) as f:
-                    # print(f.read())
-                    _msg = {
+                    #Add each tool call result to your messages array
+                    result = {
                         "role": "tool",
                         "tool_call_id": tc.id,
                         "content": f.read()
                     }
-                    messages.append(_msg)
+                    messages.append(result)
 
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!", file=sys.stderr)
