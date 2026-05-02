@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
+import subprocess
 
 from openai import OpenAI
 
@@ -57,40 +58,6 @@ TOOL_SPECS : list[ChatCompletionToolUnionParam] = [
                                 }
                             },
                             "required": ["file_path", "content"]
-                        }
-                    }
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "ListFiles",
-                        "description": "List the files in a directory. The input should be a valid directory path. The output will be a list of file names in the directory.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "directory_path": {
-                                    "type": "string",
-                                    "description": "The path to the directory to list files from."
-                                }
-                            },
-                            "required": ["directory_path"]
-                        }
-                    }
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "Delete",
-                        "description": "Delete a file. The input should be a valid file path. The output will be a success message.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "file_path": {
-                                    "type": "string",
-                                    "description": "The path to the file to delete."
-                                }
-                            },
-                            "required": ["file_path"]
                         }
                     }
                 },
@@ -236,6 +203,28 @@ def main():
                         "content": f"Successfully wrote to {file_path}"
                     }
                     messages.append(result)
+
+            elif tc.function.name == "Bash":
+                args = json.loads(tc.function.arguments)
+                command = args.get("command")
+
+                if not command:
+                    raise RuntimeError("no command argument in Bash function call")
+                
+                try:
+                    #Execute the bash command and capture the output
+                    resp = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+                    output = resp.stdout + resp.stderr
+
+                    result: ChatCompletionToolMessageParam = {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": output
+                    }
+                    messages.append(result)
+                except subprocess.CalledProcessError as e:
+                    print(f"Command failed with error: {e}")
+                
 
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!", file=sys.stderr)
