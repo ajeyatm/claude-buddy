@@ -136,6 +136,7 @@ def main():
     if not top_tool_call.type == "function":
         raise RuntimeError("no function call in top tool call")
     
+    file_content = None
     if (top_tool_call.function.name == "Read"):  # this is the expected function call for the first stage of the test
         print("Read function call detected!")
         args = json.loads(top_tool_call.function.arguments)
@@ -146,7 +147,7 @@ def main():
             raise RuntimeError(f"file_path {file_path} does not exist or is not a file")
         with open(file_path, "r") as f:
             file_content = f.read()
-        print(file_content)
+        
     else:
         raise RuntimeError(f"unexpected function call {top_tool_call.function.name} in top tool call")
 
@@ -154,7 +155,8 @@ def main():
     print("Logs from your program will appear here!", file=sys.stderr)
 
     # TODO: Uncomment the following line to pass the first stage
-    print(chat.choices[0].message.content)
+    # print(chat.choices[0].message.content)
+    print(file_content)
 
 
 if __name__ == "__main__":
