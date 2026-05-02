@@ -21,6 +21,97 @@ def main():
     chat = client.chat.completions.create(
         model="anthropic/claude-haiku-4.5",
         messages=[{"role": "user", "content": args.p}],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "Read",
+                    "description": "Read the content of a file. The input should be a valid file path. The output will be the content of the file.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "The path to the file to read."
+                            }
+                        },
+                        "required": ["file_path"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "Write",
+                    "description": "Write content to a file. The input should be a valid file path and the content to write. The output will be a success message.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "The path to the file to write."
+                            },
+                            "content": {
+                                "type": "string",
+                                "description": "The content to write to the file."
+                            }
+                        },
+                        "required": ["file_path", "content"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "ListFiles",
+                    "description": "List the files in a directory. The input should be a valid directory path. The output will be a list of file names in the directory.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "directory_path": {
+                                "type": "string",
+                                "description": "The path to the directory to list files from."
+                            }
+                        },
+                        "required": ["directory_path"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "Delete",
+                    "description": "Delete a file. The input should be a valid file path. The output will be a success message.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "The path to the file to delete."
+                            }
+                        },
+                        "required": ["file_path"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "Bash",
+                    "description": "Execute a bash command. The input should be a valid bash command. The output will be the result of the command.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "command": {
+                                "type": "string",
+                                "description": "The bash command to execute."
+                            }
+                        },
+                        "required": ["command"]
+                    }
+                }
+            }
+        ]
     )
 
     if not chat.choices or len(chat.choices) == 0:
