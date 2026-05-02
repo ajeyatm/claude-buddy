@@ -213,7 +213,7 @@ def main():
                 
                 try:
                     #Execute the bash command and capture the output
-                    resp = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+                    resp = subprocess.run(command, shell=True, capture_output=True, text=True, check=True) #timeout=30 -->avoid hanging indefinitely
                     output = resp.stdout + resp.stderr
 
                     result: ChatCompletionToolMessageParam = {
