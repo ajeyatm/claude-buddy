@@ -7,22 +7,15 @@ from typing import TYPE_CHECKING, Literal
 
 from openai import OpenAI
 
-# if TYPE_CHECKING:
-#     from openai.types.chat import (
-#         ChatCompletionMessageFunctionToolCall,
-#         ChatCompletionMessageParam,
-#         ChatCompletionToolMessageParam,
-#         ChatCompletionToolUnionParam,
-#         ChatCompletionAssistantMessageParam
-#     )
-
-from openai.types.chat import (
+if TYPE_CHECKING:
+    from openai.types.chat import (
         ChatCompletionMessageFunctionToolCall,
         ChatCompletionMessageParam,
         ChatCompletionToolMessageParam,
         ChatCompletionToolUnionParam,
         ChatCompletionAssistantMessageParam
     )
+
 
 API_KEY = os.getenv("OPENROUTER_API_KEY")
 BASE_URL = os.getenv("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
@@ -157,7 +150,7 @@ def main():
         If the model wants to use a tool, the response will contain a tool_calls array
         '''
         
-        message_dict = response_message.model_dump(exclude_unset=True)
+        message_dict: dict = response_message.model_dump(exclude_unset=True)
 
         #POSSIBLE ISSUE AND WORK-AROUND: we should be able to just do messages.append(response_message.model_dump()) here, but if for some reason the tool_calls field is not being included in the model_dump output, even though it is present in the response_message object the we'll manually construct the message dict to include the tool_calls field.
         
@@ -211,12 +204,12 @@ def main():
                 
                 with open(file_path) as f:
                     #Add each tool call result to your messages array
-                    result = {
-                        "role": Literal['tool'],
+                    result : ChatCompletionToolMessageParam = {
+                        "role": 'tool',
                         "tool_call_id": tc.id,
                         "content": f.read()
                     }
-                    messages.append(ChatCompletionToolMessageParam(**result))
+                    messages.append(result)
 
             elif tc.function.name == "Write":
                 args = json.loads(tc.function.arguments)
@@ -236,12 +229,12 @@ def main():
                 with open(file_path, "w") as f:
                     f.write(content)
                 
-                    result = {
-                        "role": Literal['tool'],
+                    result: ChatCompletionToolMessageParam = {
+                        "role": "tool",
                         "tool_call_id": tc.id,
                         "content": f"Successfully wrote to {file_path}"
                     }
-                    messages.append(ChatCompletionToolMessageParam(**result))
+                    messages.append(result)
 
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!", file=sys.stderr)
