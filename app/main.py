@@ -122,41 +122,39 @@ def main():
     if not top_choice.message:
         raise RuntimeError("no message content in top choice")
     
+    
     content = top_choice.message.content
     tool_calls = top_choice.message.tool_calls
 
-    if not tool_calls and not content:
+    if content:
+        print(content)
+
+    if not tool_calls or not content:
         raise RuntimeError("no tool calls and no content in message")
 
     if not tool_calls or len(tool_calls) == 0:
         raise RuntimeError("no tool calls in message")
     
-    
-    top_tool_call = tool_calls[0]
-    if not top_tool_call.type == "function":
-        raise RuntimeError("no function call in top tool call")
-    
-    file_content = None
-    if (top_tool_call.function.name == "Read"):  # this is the expected function call for the first stage of the test
-        print("Read function call detected!")
-        args = json.loads(top_tool_call.function.arguments)
+    for tc in tool_calls or []:
+        if not tc.type == "function":
+            raise RuntimeError("tool call is not a function call")
+        
+        args = json.loads(tc.function.arguments)
         file_path = args.get("file_path")
+
         if not file_path:
             raise RuntimeError("no file_path argument in Read function call")
+
         if not os.path.isfile(file_path):
             raise RuntimeError(f"file_path {file_path} does not exist or is not a file")
-        with open(file_path, "r") as f:
-            file_content = f.read()
         
-    else:
-        raise RuntimeError(f"unexpected function call {top_tool_call.function.name} in top tool call")
+        if tc.function.name == "Read":
+            with open(file_path) as f:
+                print(f.read())
 
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!", file=sys.stderr)
 
-    # TODO: Uncomment the following line to pass the first stage
-    # print(chat.choices[0].message.content)
-    print(file_content)
 
 
 if __name__ == "__main__":
