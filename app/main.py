@@ -216,7 +216,7 @@ def main():
                 file_path.parent.mkdir(parents=True, exist_ok=True)
 
                 with open(file_path, "w") as f:
-                    result  = f.write(content)
+                    f.write(content)
                 
                     result = {
                         "role": "tool",
