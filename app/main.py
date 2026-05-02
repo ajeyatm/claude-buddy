@@ -172,7 +172,7 @@ def main():
         #     #     for tc in response_message.tool_calls
         #     # ]
         
-        messages.append(ChatCompletionAssistantMessageParam(**message_dict))
+        messages.append(message_dict)
 
         #Record the assistant's response --> END
         
