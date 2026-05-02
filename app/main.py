@@ -136,16 +136,17 @@ def main():
         if not tc.type == "function":
             raise RuntimeError("tool call is not a function call")
         
-        args = json.loads(tc.function.arguments)
-        file_path = args.get("file_path")
-
-        if not file_path:
-            raise RuntimeError("no file_path argument in Read function call")
-
-        if not os.path.isfile(file_path):
-            raise RuntimeError(f"file_path {file_path} does not exist or is not a file")
         
         if tc.function.name == "Read":
+            args = json.loads(tc.function.arguments)
+            file_path = args.get("file_path")
+
+            if not file_path:
+                raise RuntimeError("no file_path argument in Read function call")
+
+            if not os.path.isfile(file_path):
+                raise RuntimeError(f"file_path {file_path} does not exist or is not a file")
+            
             with open(file_path) as f:
                 print(f.read())
 
