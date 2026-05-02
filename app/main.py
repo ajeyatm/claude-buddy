@@ -150,7 +150,7 @@ def main():
         If the model wants to use a tool, the response will contain a tool_calls array
         '''
         
-        message_dict: dict = response_message.model_dump(exclude_unset=True)
+        message_dict: ChatCompletionAssistantMessageParam = response_message.model_dump(exclude_unset=True)
 
         #POSSIBLE ISSUE AND WORK-AROUND: we should be able to just do messages.append(response_message.model_dump()) here, but if for some reason the tool_calls field is not being included in the model_dump output, even though it is present in the response_message object the we'll manually construct the message dict to include the tool_calls field.
         
@@ -173,7 +173,7 @@ def main():
         #     #     for tc in response_message.tool_calls
         #     # ]
         
-        messages.append(ChatCompletionAssistantMessageParam(**message_dict))
+        messages.append(message_dict)
 
         #Record the assistant's response --> END
         
