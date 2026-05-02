@@ -3,34 +3,23 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Literal
 
 from openai import OpenAI
+
+if TYPE_CHECKING:
+    from openai.types.chat import (
+        ChatCompletionMessageFunctionToolCall,
+        ChatCompletionMessageParam,
+        ChatCompletionToolMessageParam,
+        ChatCompletionToolUnionParam,
+        ChatCompletionAssistantMessageParam
+    )
 
 API_KEY = os.getenv("OPENROUTER_API_KEY")
 BASE_URL = os.getenv("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
 
-
-def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("-p", required=True)
-    args = p.parse_args()
-
-
-    if not API_KEY:
-        raise RuntimeError("OPENROUTER_API_KEY is not set")
-
-    client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
-
-    #Initialize the conversation
-    messages = [{"role": "user", "content": args.p}]
-
-    #agentic loop
-    while True:
-
-        chat = client.chat.completions.create(
-            model="anthropic/claude-haiku-4.5",
-            messages=messages,
-            tools=[
+TOOL_SPECS : list[ChatCompletionToolUnionParam] = [
                 {
                     "type": "function",
                     "function": {
@@ -121,6 +110,28 @@ def main():
                     }
                 }
             ]
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("-p", required=True)
+    args = p.parse_args()
+
+
+    if not API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY is not set")
+
+    client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
+
+    #Initialize the conversation
+    messages: list[ChatCompletionMessageParam] = [{"role": "user", "content": args.p}]
+
+    #agentic loop
+    while True:
+
+        chat = client.chat.completions.create(
+            model="anthropic/claude-haiku-4.5",
+            messages=messages,
+            tools=TOOL_SPECS
         )
 
 
@@ -138,7 +149,7 @@ def main():
         If the model wants to use a tool, the response will contain a tool_calls array
         '''
         
-        message_dict = response_message.model_dump()
+        message_dict = response_message.model_dump(exclude_unset=True)
 
         #POSSIBLE ISSUE AND WORK-AROUND: we should be able to just do messages.append(response_message.model_dump()) here, but if for some reason the tool_calls field is not being included in the model_dump output, even though it is present in the response_message object the we'll manually construct the message dict to include the tool_calls field.
         
@@ -161,7 +172,7 @@ def main():
         #     #     for tc in response_message.tool_calls
         #     # ]
         
-        messages.append(message_dict)
+        messages.append(ChatCompletionAssistantMessageParam(**message_dict))
 
         #Record the assistant's response --> END
         
@@ -170,7 +181,6 @@ def main():
              Continue the loop until the model responds without requesting any tools (when tool_calls is missing or empty).
              At this point, print the final message content to stdout and exit.
             '''
-            print(response_message.content)
             break
 
         
@@ -194,11 +204,11 @@ def main():
                 with open(file_path) as f:
                     #Add each tool call result to your messages array
                     result = {
-                        "role": "tool",
+                        "role": Literal['tool'],
                         "tool_call_id": tc.id,
                         "content": f.read()
                     }
-                    messages.append(result)
+                    messages.append(ChatCompletionToolMessageParam(**result))
 
             elif tc.function.name == "Write":
                 args = json.loads(tc.function.arguments)
@@ -219,16 +229,16 @@ def main():
                     f.write(content)
                 
                     result = {
-                        "role": "tool",
+                        "role": Literal['tool'],
                         "tool_call_id": tc.id,
                         "content": f"Successfully wrote to {file_path}"
                     }
-                    messages.append(result)
+                    messages.append(ChatCompletionToolMessageParam(**result))
 
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!", file=sys.stderr)
 
-
+    print(response_message.content)
 
 if __name__ == "__main__":
     main()
