@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING, Literal
 import subprocess
 
 from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
 
 if TYPE_CHECKING:
     from openai.types.chat import (
@@ -18,9 +21,13 @@ if TYPE_CHECKING:
     )
 
 
-API_KEY = os.getenv("OPENROUTER_API_KEY")
-BASE_URL = os.getenv("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
-MODEL = os.getenv("OPENROUTER_MODEL", default="anthropic/claude-haiku-4.5")
+# API_KEY = os.getenv("OPENROUTER_API_KEY")
+# BASE_URL = os.getenv("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
+# MODEL = os.getenv("OPENROUTER_MODEL", default="anthropic/claude-haiku-4.5")
+API_KEY = os.getenv("MY_GEN_ASSIST_TOKEN")
+BASE_URL = os.getenv("MY_GEN_ASSIST_BASE_URL")
+MODEL = os.getenv("MY_GEN_ASSIST_MODEL")
+
 
 TOOL_SPECS : list[ChatCompletionToolUnionParam] = [
                 {
