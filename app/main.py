@@ -170,8 +170,15 @@ def main():
     while True:
         # Prompt user for the next turn in the ongoing session.
         query = APP_CONSOLE.input(f"[{USER_PROMPT_STYLE}]You[/{USER_PROMPT_STYLE}] [dim]> [/dim]")
-        if query.lower() == "exit":
+        
+        query = query.strip()
+        if not query:
+            continue
+
+        normalized_query = query.lower()
+        if normalized_query in ("exit", "quit", "q"):
             break
+
         _msg: ChatCompletionMessageParam = {"role": "user", "content": query}
         messages.append(_msg)
         turn_prompt_tokens, turn_completion_tokens, turn_total_tokens = my_agent(client, messages)

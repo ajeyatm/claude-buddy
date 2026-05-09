@@ -14,7 +14,7 @@ Use this checklist to implement features safely in order. We will complete one i
   - Return timeout/failure output as tool message.
   - Ensure no hanging command blocks the loop forever.
 
-- [ ] Add input guardrails for interactive loop
+- [x] Add input guardrails for interactive loop
   - Skip empty inputs.
   - Support exit aliases (`exit`, `quit`, `q`).
   - Keep prompt flow clean.
