@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 # MODEL = os.getenv("OPENROUTER_MODEL", default="anthropic/claude-haiku-4.5")
 API_KEY = os.getenv("MY_GEN_ASSIST_TOKEN")
 BASE_URL = os.getenv("MY_GEN_ASSIST_BASE_URL")
-MODEL = os.getenv("MY_GEN_ASSIST_MODEL")
+MODEL = os.getenv("MY_GEN_ASSIST_MODEL", "myGenAssist,claude-sonnet-4.6-azure")
 
 
 TOOL_SPECS : list[ChatCompletionToolUnionParam] = [
