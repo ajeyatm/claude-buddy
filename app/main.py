@@ -55,6 +55,7 @@ def usage(usage : dict[str, int | str]) -> None:
     LOG_CONSOLE.print(f"[{USAGE_SEPARATOR_STYLE}]{REPEAT_CHAR * REPEAT_COUNT}[/{USAGE_SEPARATOR_STYLE}]")
 
 def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tuple[int, int, int]:
+    """Run one full agent turn, including tool-call iterations, and return token totals."""
 
     turn_prompt_tokens = 0
     turn_completion_tokens = 0
@@ -62,6 +63,7 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
  
     #agentic loop
     while True:
+        # Each iteration is one model round-trip; tools may extend the same user turn.
         chat = client.chat.completions.create(
             model=MODEL,
             messages=messages,
@@ -121,8 +123,10 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
                     }
                 )
             if serialized_tool_calls:
+                # Only include tool_calls when present to avoid invalid empty arrays in history.
                 message_dict["tool_calls"] = serialized_tool_calls
 
+        # Persist assistant output so the next model call has full conversational context.
         messages.append(cast("ChatCompletionMessageParam", message_dict))
 
         #Record the assistant's response --> END
@@ -133,7 +137,7 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
             '''
             break
 
-        
+        # Delegate concrete tool execution to tools module; it appends tool messages/errors.
         execute_tool_calls(response_message, messages)
 
     APP_CONSOLE.rule(f"[{ASSISTANT_HEADER_STYLE}]Assistant[/{ASSISTANT_HEADER_STYLE}]", style="dim")
@@ -153,6 +157,7 @@ messages: list[ChatCompletionMessageParam] = [
     }
 ]
 def main():
+    """Run interactive chat loop and maintain session-level token usage totals."""
     if not API_KEY:
         raise RuntimeError("API_KEY is not set")
     
@@ -163,6 +168,7 @@ def main():
     session_total_tokens = 0
 
     while True:
+        # Prompt user for the next turn in the ongoing session.
         query = APP_CONSOLE.input(f"[{USER_PROMPT_STYLE}]You[/{USER_PROMPT_STYLE}] [dim]> [/dim]")
         if query.lower() == "exit":
             break
@@ -172,6 +178,7 @@ def main():
         session_prompt_tokens += turn_prompt_tokens
         session_completion_tokens += turn_completion_tokens
         session_total_tokens += turn_total_tokens
+        # Keep a running token summary for full-session observability.
         usage({
             "usage_type": "session_summary",
             "prompt_tokens": session_prompt_tokens,
