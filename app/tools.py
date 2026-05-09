@@ -12,6 +12,7 @@ if TYPE_CHECKING:
         ChatCompletionToolUnionParam,
     )
 
+BASH_TIMEOUT_SECONDS = int(os.getenv("BASH_TIMEOUT_SECONDS", "15"))
 
 TOOL_SPECS: list[ChatCompletionToolUnionParam] = [
     {
@@ -176,7 +177,7 @@ def execute_tool_calls(response_message: object, messages: list[ChatCompletionMe
 
             try:
                 # Use check=True so non-zero exit codes are handled as explicit tool failures.
-                resp = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+                resp = subprocess.run(command, shell=True, capture_output=True, text=True, check=True, timeout=BASH_TIMEOUT_SECONDS)
                 # Return combined stdout/stderr so the model sees the full command result.
                 output = resp.stdout + resp.stderr
 
@@ -188,3 +189,7 @@ def execute_tool_calls(response_message: object, messages: list[ChatCompletionMe
                 messages.append(result)
             except subprocess.CalledProcessError as e:
                 append_tool_error(messages, function_tc.id, tool_name, f"Command failed with error: {e}")
+            except subprocess.TimeoutExpired as e:
+                append_tool_error(messages, function_tc.id, tool_name, f"Command timed out after {BASH_TIMEOUT_SECONDS}s")
+            except Exception as e:
+                append_tool_error(messages, function_tc.id, tool_name, f"Error executing command: {e}")

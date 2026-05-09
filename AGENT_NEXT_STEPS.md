@@ -9,7 +9,7 @@ Use this checklist to implement features safely in order. We will complete one i
   - Include concise error context in tool output.
   - Keep behavior consistent across Read/Write/Bash.
 
-- [ ] Add timeout and safe-execution controls for Bash
+- [x] Add timeout and safe-execution controls for Bash
   - Add subprocess timeout.
   - Return timeout/failure output as tool message.
   - Ensure no hanging command blocks the loop forever.
