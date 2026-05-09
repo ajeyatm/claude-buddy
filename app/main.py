@@ -42,6 +42,9 @@ USAGE_TOTAL_STYLE = "bold white"
 USAGE_SEPARATOR_STYLE = "dim"
 
 def usage(usage : dict[str, int | str]) -> None:
+    """Prints usage information to the console in a formatted way. 
+    Expects a dictionary with keys 'usage_type', 'prompt_tokens', 'completion_tokens', and 'total_tokens'.
+    """
     usage_type = usage.get("usage_type", "N/A")
     prompt_tokens = usage.get("prompt_tokens", 0)
     completion_tokens = usage.get("completion_tokens", 0)
@@ -55,6 +58,18 @@ def usage(usage : dict[str, int | str]) -> None:
     )
     LOG_CONSOLE.print(f"[{USAGE_SEPARATOR_STYLE}]{REPEAT_CHAR * REPEAT_COUNT}[/{USAGE_SEPARATOR_STYLE}]")
 
+def append_tool_error(messages: list[ChatCompletionMessageParam], tool_call_id: str, tool_name: str, reason: str) -> None:
+    """
+    append standardized tool errors:
+    append_tool_error(messages, tool_call_id, tool_name, reason)
+    Content format:
+    TOOL_ERROR: tool_name: reason
+    """
+    messages.append({
+        "role": "tool",
+        "tool_call_id": tool_call_id,
+        "content": f"TOOL_ERROR: {tool_name}: {reason}"
+    })
 
 TOOL_SPECS : list[ChatCompletionToolUnionParam] = [
                 {
@@ -198,61 +213,83 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
         #Execute tool calls if there are any
         for tc in response_message.tool_calls or []:
             if tc.type != "function":
-                raise RuntimeError("tool call is not a function call")
+                append_tool_error(messages, tc.id, tc.type, "tool call is not a function call")
+                continue
+            
             function_tc = cast("ChatCompletionMessageFunctionToolCall", tc)
             
+
+            if function_tc.function.name not in ['Read', 'Write', 'Bash']:
+                append_tool_error(messages, function_tc.id, function_tc.function.name, f"tool {function_tc.function.name} is not supported")
+                continue
             
+            try:
+                args = json.loads(function_tc.function.arguments)
+            except json.JSONDecodeError as e:
+                append_tool_error(messages, function_tc.id, function_tc.function.name, f"invalid JSON arguments: {e}")
+                continue
+
             # Execute each requested tool (but do not print their result to stdout)
             if function_tc.function.name == "Read":
-                args = json.loads(function_tc.function.arguments)
                 file_path = args.get("file_path")
 
                 if not file_path:
-                    raise RuntimeError("no file_path argument in Read function call")
+                    append_tool_error(messages, function_tc.id, function_tc.function.name, "no file_path argument provided for Read tool call")
+                    continue
 
                 if not os.path.isfile(file_path):
-                    raise RuntimeError(f"file_path {file_path} does not exist or is not a file")
+                    append_tool_error(messages, function_tc.id, function_tc.function.name, f"file_path {file_path} does not exist or is not a file")
+                    continue
                 
-                with open(file_path) as f:
-                    #Add each tool call result to your messages array
-                    result : ChatCompletionToolMessageParam = {
-                        "role": 'tool',
-                        "tool_call_id": function_tc.id,
-                        "content": f.read()
-                    }
-                    messages.append(result)
+                try:
+                    with open(file_path) as f:
+                        #Add each tool call result to your messages array
+                        result : ChatCompletionToolMessageParam = {
+                            "role": 'tool',
+                            "tool_call_id": function_tc.id,
+                            "content": f.read()
+                        }
+                        messages.append(result)
+                except Exception as e:
+                    append_tool_error(messages, function_tc.id, function_tc.function.name, f"error reading file_path {file_path}: {e}")
+                    continue
 
             elif function_tc.function.name == "Write":
-                args = json.loads(function_tc.function.arguments)
                 file_path_str = args.get("file_path")
                 content = args.get("content")
 
                 if not file_path_str:
-                    raise RuntimeError("no file_path argument in Write function call")
+                    append_tool_error(messages, function_tc.id, function_tc.function.name, "no file_path argument provided for Write tool call")
+                    continue
                 
                 if not content:
-                    raise RuntimeError("no content argument in Write function call")
+                    append_tool_error(messages, function_tc.id, function_tc.function.name, "no content argument provided for Write tool call")
+                    continue
                 
-                file_path = Path(file_path_str)
-                # Create directories if they don't exist
-                file_path.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    file_path = Path(file_path_str)
+                    # Create directories if they don't exist
+                    file_path.parent.mkdir(parents=True, exist_ok=True)
 
-                with open(file_path, "w") as f:
-                    f.write(content)
-                
-                    result: ChatCompletionToolMessageParam = {
-                        "role": "tool",
-                        "tool_call_id": function_tc.id,
-                        "content": f"Successfully wrote to {file_path}"
-                    }
-                    messages.append(result)
+                    with open(file_path, "w") as f:
+                        f.write(content)
+                    
+                        result: ChatCompletionToolMessageParam = {
+                            "role": "tool",
+                            "tool_call_id": function_tc.id,
+                            "content": f"Successfully wrote to {file_path}"
+                        }
+                        messages.append(result)
+                except Exception as e:
+                    append_tool_error(messages, function_tc.id, function_tc.function.name, f"error writing to file_path {file_path_str}: {e}")
+                    continue
 
             elif function_tc.function.name == "Bash":
-                args = json.loads(function_tc.function.arguments)
                 command = args.get("command")
 
                 if not command:
-                    raise RuntimeError("no command argument in Bash function call")
+                    append_tool_error(messages, function_tc.id, function_tc.function.name, "no command argument provided for Bash tool call")
+                    continue
                 
                 try:
                     #Execute the bash command and capture the output
@@ -266,13 +303,7 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
                     }
                     messages.append(result)
                 except subprocess.CalledProcessError as e:
-                    print(f"Command failed with error: {e}")
-                    result: ChatCompletionToolMessageParam = {
-                        "role": "tool",
-                        "tool_call_id": function_tc.id,
-                        "content": f"Command failed with error: {e}"
-                    }
-                    messages.append(result)       
+                    append_tool_error(messages, function_tc.id, function_tc.function.name, f"Command failed with error: {e}")
 
     APP_CONSOLE.rule(f"[{ASSISTANT_HEADER_STYLE}]Assistant[/{ASSISTANT_HEADER_STYLE}]", style="dim")
     APP_CONSOLE.print(response_message.content)
