@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from rich.console import Console
 from app.tools import TOOL_SPECS, execute_tool_calls, build_generic_system_prompt, build_dynamic_system_prompt
 from app.ui import APP_CONSOLE, LOG_CONSOLE, ASSISTANT_HEADER_STYLE, USER_PROMPT_STYLE, print_usage
-from app.models import FatalAgentError, RecoverableAgentError, validate_and_append_message
+from app.models import FatalAgentError, RecoverableAgentError, validate_and_append_message, validate_message
 from app.budget import (
     is_over_soft_limit, is_over_hard_limit, 
     estimate_message_tokens, log_budget_status,
@@ -207,7 +207,9 @@ def main():
             # Insert skill context message after system message if not default skill
             skill_context_msg = None
             if not routing_result["is_default"]:
-                skill_context_msg = create_skill_context_message(routing_result["skill"])
+                skill_context_dict = create_skill_context_message(routing_result["skill"])
+                # Validate the skill context message and get the properly typed version
+                skill_context_msg = validate_message(skill_context_dict)
                 messages.insert(1, skill_context_msg)
             
             try:
