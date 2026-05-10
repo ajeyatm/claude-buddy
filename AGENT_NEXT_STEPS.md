@@ -25,15 +25,15 @@ Use this checklist to implement features safely in order. We will complete one i
 
 ## Phase 2: Token Budget Guardrail
 
-- [ ] Add context budget thresholds
+- [x] Add context budget thresholds
   - Configure soft and hard token limits via constants/env.
   - Trigger compaction at soft limit before request.
 
-- [ ] Add message token estimation helper
+- [x] Add message token estimation helper
   - Use a simple heuristic first (char-to-token estimate).
   - Log estimated prompt size before API call.
 
-- [ ] Add preflight budget check in agent loop
+- [x] Add preflight budget check in agent loop
   - Check estimated size before each completion call.
   - Compact messages when over threshold.
 
@@ -102,7 +102,7 @@ Use this checklist to implement features safely in order. We will complete one i
 ## Execution Order (Strict)
 
 - [x] Complete all Phase 1 items.
-- [ ] Complete all Phase 2 items.
+- [x] Complete all Phase 2 items.
 - [ ] Complete all Phase 3 items.
 - [ ] Complete all Phase 4 items.
 - [ ] Complete all Phase 5 items.
