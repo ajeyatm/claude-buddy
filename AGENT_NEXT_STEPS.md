@@ -96,6 +96,13 @@ Use this checklist to implement features safely in order. We will complete one i
   - Each Skill has `context` field with instructions (2-4 lines each)
   - Router appends [ACTIVE SKILL:] section only for detected skill
 
+**✅ PHASE 5 COMPLETE** — Skills Layer Fully Integrated:
+  - 4 skills defined: explain, code-edit, debug, bash-help
+  - Lightweight router detects skill from user keywords
+  - System prompt dynamically extended with skill context
+  - Tested and verified: explain skill, code-edit skill working
+  - Fallback to default conversational mode when no skill matches
+
 ## Phase 6: Validation and Hardening
 
 - [ ] Create reproducible manual test set
@@ -121,7 +128,7 @@ Use this checklist to implement features safely in order. We will complete one i
 - [x] Complete all Phase 2 items.
 - [x] Complete all Phase 3 items.
 - [x] Complete all Phase 4 items.
-- [ ] Complete all Phase 5 items.
+- [x] Complete all Phase 5 items.
 - [ ] Complete all Phase 6 items.
 
 ## Notes
