@@ -14,7 +14,7 @@ from app.budget import (
     SOFT_TOKEN_LIMIT, HARD_TOKEN_LIMIT
 )
 from app.compaction import compact_messages, should_compact, COMPACTION_WINDOW
-from app.router import route_user_input, log_skill_routing
+from app.router import route_user_input, log_skill_routing, create_skill_context_message
 
 load_dotenv()
 
@@ -198,21 +198,25 @@ def main():
             _msg: dict[str, object] = {"role": "user", "content": query}
             validate_and_append_message(messages, _msg)
             
-            # Route to skill and update system prompt with skill context
+            # Route to skill and insert skill context if detected
             routing_result = route_user_input(query)
             skill_log = log_skill_routing(routing_result["skill"], query)
             if skill_log:
                 LOG_CONSOLE.print(skill_log)
             
-            # Temporarily update system message with skill-aware version
-            base_system_msg = messages[0]["content"]
-            messages[0]["content"] = routing_result["system_prompt"]
+            # Insert skill context message after system message if not default skill
+            skill_context_msg = None
+            if not routing_result["is_default"]:
+                skill_context_msg = create_skill_context_message(routing_result["skill"])
+                messages.insert(1, skill_context_msg)
             
-            # Run agent with skill-aware system prompt
-            turn_prompt_tokens, turn_completion_tokens, turn_total_tokens = my_agent(client, messages)
-            
-            # Restore base system message for next turn
-            messages[0]["content"] = base_system_msg
+            try:
+                # Run agent with skill context in message history
+                turn_prompt_tokens, turn_completion_tokens, turn_total_tokens = my_agent(client, messages)
+            finally:
+                # Remove skill context message after agent completes (keeps base conversation clean)
+                if skill_context_msg is not None and skill_context_msg in messages:
+                    messages.remove(skill_context_msg)
             
             session_prompt_tokens += turn_prompt_tokens
             session_completion_tokens += turn_completion_tokens

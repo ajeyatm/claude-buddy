@@ -84,3 +84,23 @@ def log_skill_routing(skill_name: str, user_input: str) -> str:
         return f"[dim]🎯 Skill: {skill_name} ({skill.description})[/dim]"
     
     return ""
+
+
+def create_skill_context_message(skill_name: str) -> dict:
+    """
+    Create a skill context message to insert into conversation.
+    
+    Args:
+        skill_name: Name of the skill
+    
+    Returns:
+        A message dict with role and skill-specific context
+    """
+    skill = SKILLS_CATALOG.get(skill_name)
+    if not skill:
+        return {}
+    
+    return {
+        "role": "user",
+        "content": f"[SKILL_CONTEXT: {skill_name}]\n{skill.context}",
+    }
