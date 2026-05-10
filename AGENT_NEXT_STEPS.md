@@ -114,7 +114,7 @@ Use this checklist to implement features safely in order. We will complete one i
 - [x] Complete all Phase 1 items.
 - [x] Complete all Phase 2 items.
 - [x] Complete all Phase 3 items.
-- [ ] Complete all Phase 4 items.
+- [x] Complete all Phase 4 items.
 - [ ] Complete all Phase 5 items.
 - [ ] Complete all Phase 6 items.
 
