@@ -39,15 +39,15 @@ Use this checklist to implement features safely in order. We will complete one i
 
 ## Phase 3: Message Compaction (MVP)
 
-- [ ] Implement sliding-window compaction
+- [x] Implement sliding-window compaction
   - Keep system message + most recent K turns.
   - Drop oldest turns when window exceeds cap.
 
-- [ ] Add compaction metrics
+- [x] Add compaction metrics
   - Log before/after message count.
   - Log before/after estimated tokens.
 
-- [ ] Verify compaction correctness
+- [x] Verify compaction correctness
   - Ensure conversation still continues coherently.
   - Ensure tools still work after compaction.
 
@@ -103,7 +103,7 @@ Use this checklist to implement features safely in order. We will complete one i
 
 - [x] Complete all Phase 1 items.
 - [x] Complete all Phase 2 items.
-- [ ] Complete all Phase 3 items.
+- [x] Complete all Phase 3 items.
 - [ ] Complete all Phase 4 items.
 - [ ] Complete all Phase 5 items.
 - [ ] Complete all Phase 6 items.
