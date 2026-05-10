@@ -2,6 +2,7 @@ import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from openai import OpenAI
     from openai.types.chat import ChatCompletionMessageParam
 
 # Configuration for sliding-window compaction
@@ -26,10 +27,19 @@ def count_turns(messages: list["ChatCompletionMessageParam"]) -> int:
 def compact_messages(
     messages: list["ChatCompletionMessageParam"],
     keep_last_n_turns: int = COMPACTION_WINDOW,
+    client: "OpenAI | None" = None,
+    model: str = "",
 ) -> tuple[list["ChatCompletionMessageParam"], dict]:
     """
     Implement sliding-window compaction: keep system message + most recent K turns.
     Drops oldest turns when the conversation exceeds the window.
+    Optionally generates a summary of dropped messages.
+    
+    Args:
+        messages: List of conversation messages
+        keep_last_n_turns: Number of recent turns to keep
+        client: OpenAI client (optional, for summary generation)
+        model: Model name to use for summarization
     
     Returns:
         - Compacted message list
@@ -62,6 +72,7 @@ def compact_messages(
             user_indices.append(i)
     
     # If we have more turns than desired, keep only the most recent ones
+    dropped_messages = []
     if len(user_indices) > keep_last_n_turns:
         # Calculate how many turns to drop
         turns_to_drop = len(user_indices) - keep_last_n_turns
@@ -73,17 +84,32 @@ def compact_messages(
         # We need to find where the next turn starts (the next user message after drop point)
         if turns_to_drop < len(user_indices):
             next_turn_start = user_indices[turns_to_drop]
+            # Extract dropped messages for potential summarization
+            dropped_messages = remaining_messages[:next_turn_start]
             kept_messages = remaining_messages[next_turn_start:]
         else:
             kept_messages = []
+            dropped_messages = remaining_messages
         
         turns_dropped = turns_to_drop
     else:
         kept_messages = remaining_messages
+        dropped_messages = []
         turns_dropped = 0
     
     # Rebuild the message list with system message + kept messages
     compacted = [system_message] + kept_messages
+    
+    # Generate summary if messages were dropped and client is available
+    if dropped_messages and client and model and turns_dropped > 0:
+        from app.summary import generate_summary, update_summary_message, has_summary
+        
+        # Only summarize if we don't already have a summary (avoid redundant summaries)
+        if not has_summary(compacted):
+            summary_text = generate_summary(client, model, dropped_messages)
+            if summary_text.strip():
+                update_summary_message(compacted, summary_text)
+                LOG_CONSOLE.print(f"[dim]💾 Summary added to conversation[/dim]")
     
     # Record metrics after compaction
     after_count = len(compacted)

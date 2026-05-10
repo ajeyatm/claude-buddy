@@ -53,18 +53,22 @@ Use this checklist to implement features safely in order. We will complete one i
 
 ## Phase 4: Rolling Summary Memory
 
-- [ ] Add summary generator function
+- [x] Add summary generator function
   - Summarize old turns into concise memory bullets.
   - Capture goals, constraints, decisions, pending tasks.
+  - Implemented in `app/summary.py` with LLM-based generation.
 
-- [ ] Store summary as pinned memory message
+- [x] Store summary as pinned memory message
   - Keep original system prompt.
   - Insert/update one summary message.
   - Keep recent K turns in full.
+  - Integrated into `compact_messages()` flow.
+  - Automatically generates and stores when turns are dropped.
 
-- [ ] Add summary refresh policy
+- [x] Add summary refresh policy
   - Refresh only when new old-turn chunk is compacted.
   - Avoid summarizing every single turn.
+  - Uses `has_summary()` to skip redundant regeneration.
 
 ## Phase 5: Skills Layer (After Compaction + Summary)
 

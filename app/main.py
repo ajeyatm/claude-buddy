@@ -62,7 +62,7 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
     # Check if compaction is needed (soft limit exceeded)
     if should_compact(messages, SOFT_TOKEN_LIMIT):
         LOG_CONSOLE.print(f"[yellow]⚠️ Soft token limit ({SOFT_TOKEN_LIMIT}) exceeded. Compacting message history...[/yellow]")
-        messages_to_use, metrics = compact_messages(messages, keep_last_n_turns=COMPACTION_WINDOW)
+        messages_to_use, metrics = compact_messages(messages, keep_last_n_turns=COMPACTION_WINDOW, client=client, model=MODEL)
         # Update the messages list in-place
         messages.clear()
         messages.extend(messages_to_use)
