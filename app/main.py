@@ -8,6 +8,11 @@ from rich.console import Console
 from app.tools import TOOL_SPECS, execute_tool_calls, build_generic_system_prompt, build_dynamic_system_prompt
 from app.ui import APP_CONSOLE, LOG_CONSOLE, ASSISTANT_HEADER_STYLE, USER_PROMPT_STYLE, print_usage
 from app.models import FatalAgentError, RecoverableAgentError, validate_and_append_message
+from app.budget import (
+    is_over_soft_limit, is_over_hard_limit, 
+    estimate_message_tokens, log_budget_status,
+    SOFT_TOKEN_LIMIT, HARD_TOKEN_LIMIT
+)
 
 load_dotenv()
 
@@ -46,6 +51,18 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
     turn_prompt_tokens = 0
     turn_completion_tokens = 0
     turn_total_tokens = 0
+    
+    # Preflight budget check before making API request
+    estimated_tokens = estimate_message_tokens(messages)
+    
+    if is_over_hard_limit(messages):
+        raise FatalAgentError(f"Hard token limit ({HARD_TOKEN_LIMIT}) exceeded. Session context too large. Consider starting a new session.")
+    
+    if is_over_soft_limit(messages):
+        LOG_CONSOLE.print(f"[yellow]⚠️ Warning: Context approaching soft limit ({SOFT_TOKEN_LIMIT} tokens). Currently at ~{estimated_tokens} tokens.[/yellow]")
+        LOG_CONSOLE.print("[dim]Future messages may trigger automatic compaction to manage memory.[/dim]")
+    
+    log_budget_status(messages)
  
     #agentic loop
     while True:
