@@ -9,7 +9,7 @@ SUMMARY_MARKER = "[CONVERSATION_SUMMARY]"
 SUMMARY_ROLE = "user"  # Store as user message so model can read it but won't confuse the conversation flow
 
 
-def build_summary_prompt(messages: list["ChatCompletionMessageParam"]) -> str:
+def build_summary_prompt() -> str:
     """
     Create a prompt to summarize the conversation history.
     The prompt asks the model to extract key information from older turns.
@@ -60,7 +60,7 @@ def generate_summary(
         return ""
     
     # Create summary request
-    summary_prompt = build_summary_prompt(dropped_messages) + conv_text
+    summary_prompt = build_summary_prompt() + conv_text
     
     try:
         response = client.chat.completions.create(
