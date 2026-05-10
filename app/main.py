@@ -6,6 +6,8 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from rich.console import Console
 from app.tools import TOOL_SPECS, execute_tool_calls
+from app.ui import APP_CONSOLE, LOG_CONSOLE, ASSISTANT_HEADER_STYLE, USER_PROMPT_STYLE, print_usage
+from app.models import FatalAgentError, RecoverableAgentError, validate_and_append_message
 
 load_dotenv()
 
@@ -13,7 +15,6 @@ if TYPE_CHECKING:
     from openai.types.chat import (
         ChatCompletionMessageFunctionToolCall,
         ChatCompletionMessageParam,
-        ChatCompletionAssistantMessageParam
     )
 
 
@@ -24,35 +25,12 @@ API_KEY = os.getenv("MY_GEN_ASSIST_TOKEN")
 BASE_URL = os.getenv("MY_GEN_ASSIST_BASE_URL")
 MODEL = os.getenv("MY_GEN_ASSIST_MODEL", "myGenAssist,claude-sonnet-4.6-azure")
 
-REPEAT_CHAR = "-"
-REPEAT_COUNT = 40
-APP_CONSOLE = Console()
-LOG_CONSOLE = Console(stderr=True)
+MAX_CONSECUTIVE_RECOVERABLE_ERRORS = 3
+SYSTEM_PROMPT = "You are a helpful assistant that can use tools to answer the user's question. At the end of your final respose, provide suggestions for follow up questions the user can ask to learn more about the topic."
 
-USER_PROMPT_STYLE = "bold bright_cyan"
-ASSISTANT_HEADER_STYLE = "bold bright_green"
-USAGE_LABEL_STYLE = "bold yellow"
-USAGE_PROMPT_STYLE = "bright_cyan"
-USAGE_COMPLETION_STYLE = "bright_green"
-USAGE_TOTAL_STYLE = "bold white"
-USAGE_SEPARATOR_STYLE = "dim"
-
-def usage(usage : dict[str, int | str]) -> None:
-    """Prints usage information to the console in a formatted way. 
-    Expects a dictionary with keys 'usage_type', 'prompt_tokens', 'completion_tokens', and 'total_tokens'.
-    """
-    usage_type = usage.get("usage_type", "N/A")
-    prompt_tokens = usage.get("prompt_tokens", 0)
-    completion_tokens = usage.get("completion_tokens", 0)
-    total_tokens = usage.get("total_tokens", 0)
-    LOG_CONSOLE.print(f"[{USAGE_SEPARATOR_STYLE}]{REPEAT_CHAR * REPEAT_COUNT}[/{USAGE_SEPARATOR_STYLE}]")
-    LOG_CONSOLE.print(
-        f"[{USAGE_LABEL_STYLE}]usage_{usage_type}[/{USAGE_LABEL_STYLE}] "
-        f"prompt=[{USAGE_PROMPT_STYLE}]{prompt_tokens}[/{USAGE_PROMPT_STYLE}] "
-        f"completion=[{USAGE_COMPLETION_STYLE}]{completion_tokens}[/{USAGE_COMPLETION_STYLE}] "
-        f"total=[{USAGE_TOTAL_STYLE}]{total_tokens}[/{USAGE_TOTAL_STYLE}]"
-    )
-    LOG_CONSOLE.print(f"[{USAGE_SEPARATOR_STYLE}]{REPEAT_CHAR * REPEAT_COUNT}[/{USAGE_SEPARATOR_STYLE}]")
+def build_initial_messages() -> list[ChatCompletionMessageParam]:
+    """Create a fresh conversation history containing only the system prompt."""
+    return [{"role": "system", "content": SYSTEM_PROMPT}]
 
 def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tuple[int, int, int]:
     """Run one full agent turn, including tool-call iterations, and return token totals."""
@@ -64,11 +42,14 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
     #agentic loop
     while True:
         # Each iteration is one model round-trip; tools may extend the same user turn.
-        chat = client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-            tools=TOOL_SPECS
-        )
+        try:
+            chat = client.chat.completions.create(
+                model=MODEL,
+                messages=messages,
+                tools=TOOL_SPECS
+            )
+        except Exception as e:
+            raise RecoverableAgentError(f"model request failed: {e}") from e
 
         if chat.usage:
             prompt_tokens = chat.usage.prompt_tokens or 0
@@ -88,12 +69,12 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
 
 
         if not chat.choices or len(chat.choices) == 0:
-            raise RuntimeError("no choices in response")
+            raise FatalAgentError("no choices in response")
         
         response_message = chat.choices[0].message
 
         if not response_message:
-            raise RuntimeError("no message content in top choice")
+            raise FatalAgentError("no message content in top choice")
         
         '''
         Whatever message the model returns, add it to your messages array. 
@@ -127,7 +108,7 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
                 message_dict["tool_calls"] = serialized_tool_calls
 
         # Persist assistant output so the next model call has full conversational context.
-        messages.append(cast("ChatCompletionMessageParam", message_dict))
+        validate_and_append_message(messages, message_dict)
 
         #Record the assistant's response --> END
         if not message_dict.get("tool_calls"):
@@ -138,11 +119,14 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
             break
 
         # Delegate concrete tool execution to tools module; it appends tool messages/errors.
-        execute_tool_calls(response_message, messages)
+        try:
+            execute_tool_calls(response_message, messages)
+        except Exception as e:
+            raise RecoverableAgentError(f"tool execution failed: {e}") from e
 
     APP_CONSOLE.rule(f"[{ASSISTANT_HEADER_STYLE}]Assistant[/{ASSISTANT_HEADER_STYLE}]", style="dim")
     APP_CONSOLE.print(response_message.content)
-    usage({
+    print_usage({
         "usage_type": "turn_summary",
         "prompt_tokens": turn_prompt_tokens,
         "completion_tokens": turn_completion_tokens,
@@ -150,12 +134,6 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
     })
     return turn_prompt_tokens, turn_completion_tokens, turn_total_tokens
 
-messages: list[ChatCompletionMessageParam] = [
-    {
-        "role": "system",
-        "content": "You are a helpful assistant that can use tools to answer the user's question. At the end of your final respose, provide suggestions for follow up questions the user can ask to learn more about the topic."
-    }
-]
 def main():
     """Run interactive chat loop and maintain session-level token usage totals."""
     if not API_KEY:
@@ -166,6 +144,8 @@ def main():
     session_prompt_tokens = 0
     session_completion_tokens = 0
     session_total_tokens = 0
+    consecutive_recoverable_errors = 0
+    messages = build_initial_messages()
 
     while True:
         # Prompt user for the next turn in the ongoing session.
@@ -179,19 +159,35 @@ def main():
         if normalized_query in ("exit", "quit", "q"):
             break
 
-        _msg: ChatCompletionMessageParam = {"role": "user", "content": query}
-        messages.append(_msg)
-        turn_prompt_tokens, turn_completion_tokens, turn_total_tokens = my_agent(client, messages)
-        session_prompt_tokens += turn_prompt_tokens
-        session_completion_tokens += turn_completion_tokens
-        session_total_tokens += turn_total_tokens
-        # Keep a running token summary for full-session observability.
-        usage({
-            "usage_type": "session_summary",
-            "prompt_tokens": session_prompt_tokens,
-            "completion_tokens": session_completion_tokens,
-            "total_tokens": session_total_tokens,
-        })
+        try:
+            _msg: dict[str, object] = {"role": "user", "content": query}
+            validate_and_append_message(messages, _msg)
+            turn_prompt_tokens, turn_completion_tokens, turn_total_tokens = my_agent(client, messages)
+            session_prompt_tokens += turn_prompt_tokens
+            session_completion_tokens += turn_completion_tokens
+            session_total_tokens += turn_total_tokens
+            # Keep a running token summary for full-session observability.
+            print_usage({
+                "usage_type": "session_summary",
+                "prompt_tokens": session_prompt_tokens,
+                "completion_tokens": session_completion_tokens,
+                "total_tokens": session_total_tokens,
+            })
+            consecutive_recoverable_errors = 0
+        except RecoverableAgentError as e:
+            consecutive_recoverable_errors += 1
+            LOG_CONSOLE.print(f"[yellow]Recoverable error:[/yellow] {e}")
+            if consecutive_recoverable_errors >= MAX_CONSECUTIVE_RECOVERABLE_ERRORS:
+                LOG_CONSOLE.print("[bold red]Too many recoverable errors in a row. Resetting session history.[/bold red]")
+                messages = build_initial_messages()
+                consecutive_recoverable_errors = 0
+            continue
+        except FatalAgentError as e:
+            LOG_CONSOLE.print(f"[bold red]Fatal validation/protocol error:[/bold red] {e}")
+            LOG_CONSOLE.print("[bold red]Session history was reset. Please retry your request.[/bold red]")
+            messages = build_initial_messages()
+            consecutive_recoverable_errors = 0
+            continue
 
 if __name__ == "__main__":
     main()
