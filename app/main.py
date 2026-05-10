@@ -13,6 +13,7 @@ from app.budget import (
     estimate_message_tokens, log_budget_status,
     SOFT_TOKEN_LIMIT, HARD_TOKEN_LIMIT
 )
+from app.compaction import compact_messages, should_compact, COMPACTION_WINDOW
 
 load_dotenv()
 
@@ -58,9 +59,17 @@ def my_agent(client: OpenAI, messages: list[ChatCompletionMessageParam]) -> tupl
     if is_over_hard_limit(messages):
         raise FatalAgentError(f"Hard token limit ({HARD_TOKEN_LIMIT}) exceeded. Session context too large. Consider starting a new session.")
     
-    if is_over_soft_limit(messages):
+    # Check if compaction is needed (soft limit exceeded)
+    if should_compact(messages, SOFT_TOKEN_LIMIT):
+        LOG_CONSOLE.print(f"[yellow]⚠️ Soft token limit ({SOFT_TOKEN_LIMIT}) exceeded. Compacting message history...[/yellow]")
+        messages_to_use, metrics = compact_messages(messages, keep_last_n_turns=COMPACTION_WINDOW)
+        # Update the messages list in-place
+        messages.clear()
+        messages.extend(messages_to_use)
+        estimated_tokens = metrics["after_tokens"]
+    elif is_over_soft_limit(messages):
         LOG_CONSOLE.print(f"[yellow]⚠️ Warning: Context approaching soft limit ({SOFT_TOKEN_LIMIT} tokens). Currently at ~{estimated_tokens} tokens.[/yellow]")
-        LOG_CONSOLE.print("[dim]Future messages may trigger automatic compaction to manage memory.[/dim]")
+        LOG_CONSOLE.print("[dim]Next message may trigger automatic compaction to manage memory.[/dim]")
     
     log_budget_status(messages)
  
