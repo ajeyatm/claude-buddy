@@ -14,6 +14,7 @@ from app.budget import (
     SOFT_TOKEN_LIMIT, HARD_TOKEN_LIMIT
 )
 from app.compaction import compact_messages, should_compact, COMPACTION_WINDOW
+from app.router import route_user_input, log_skill_routing
 
 load_dotenv()
 
@@ -196,7 +197,23 @@ def main():
         try:
             _msg: dict[str, object] = {"role": "user", "content": query}
             validate_and_append_message(messages, _msg)
+            
+            # Route to skill and update system prompt with skill context
+            routing_result = route_user_input(query)
+            skill_log = log_skill_routing(routing_result["skill"], query)
+            if skill_log:
+                LOG_CONSOLE.print(skill_log)
+            
+            # Temporarily update system message with skill-aware version
+            base_system_msg = messages[0]["content"]
+            messages[0]["content"] = routing_result["system_prompt"]
+            
+            # Run agent with skill-aware system prompt
             turn_prompt_tokens, turn_completion_tokens, turn_total_tokens = my_agent(client, messages)
+            
+            # Restore base system message for next turn
+            messages[0]["content"] = base_system_msg
+            
             session_prompt_tokens += turn_prompt_tokens
             session_completion_tokens += turn_completion_tokens
             session_total_tokens += turn_total_tokens
