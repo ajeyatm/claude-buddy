@@ -19,7 +19,7 @@ Use this checklist to implement features safely in order. We will complete one i
   - Support exit aliases (`exit`, `quit`, `q`).
   - Keep prompt flow clean.
 
-- [ ] Add message-shape validation helper
+- [x] Add message-shape validation helper
   - Validate assistant/tool message shape before append.
   - Prevent invalid history entries (especially `tool_calls`).
 
@@ -101,7 +101,7 @@ Use this checklist to implement features safely in order. We will complete one i
 
 ## Execution Order (Strict)
 
-- [ ] Complete all Phase 1 items.
+- [x] Complete all Phase 1 items.
 - [ ] Complete all Phase 2 items.
 - [ ] Complete all Phase 3 items.
 - [ ] Complete all Phase 4 items.
