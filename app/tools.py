@@ -193,3 +193,86 @@ def execute_tool_calls(response_message: object, messages: list[ChatCompletionMe
                 append_tool_error(messages, function_tc.id, tool_name, f"Command timed out after {BASH_TIMEOUT_SECONDS}s")
             except Exception as e:
                 append_tool_error(messages, function_tc.id, tool_name, f"Error executing command: {e}")
+
+
+def build_dynamic_system_prompt(tool_specs: list) -> str:
+    """
+    OPTION A: Build a system prompt dynamically from available tool specs.
+    This ensures the prompt always stays in sync with actual tools.
+    Auto-updates when tools change without code modifications.
+    """
+    tools_description = []
+    
+    for tool in tool_specs:
+        if tool["type"] != "function":
+            continue
+        
+        func = tool["function"]
+        name = func["name"]
+        description = func["description"]
+        params = func["parameters"].get("properties", {})
+        required = func["parameters"].get("required", [])
+        
+        # Build parameter list
+        param_info = []
+        for param_name, param_spec in params.items():
+            param_type = param_spec.get("type", "unknown")
+            param_desc = param_spec.get("description", "")
+            is_required = param_name in required
+            req_marker = "(required)" if is_required else "(optional)"
+            param_info.append(f"   - {param_name} ({param_type}) {req_marker}: {param_desc}")
+        
+        param_str = "\n".join(param_info) if param_info else "   - No parameters"
+        
+        tools_description.append(f"""
+**{name}**
+  Description: {description}
+  Parameters:
+{param_str}""")
+    
+    tools_section = "\n".join(tools_description)
+    
+    return f"""You are an expert programming assistant with access to powerful tools for code analysis and execution.
+
+**Available Tools:**
+{tools_section}
+
+**Usage Guidelines:**
+- Use tools proactively to understand the codebase or execute commands
+- Read files before suggesting changes
+- Execute bash commands to verify system state
+- For file operations, always provide complete, well-formatted content
+- Provide concise, actionable responses with clear explanations
+- End with relevant follow-up questions the user can ask for deeper learning
+
+**Safety & Best Practices:**
+- Bash commands have a {BASH_TIMEOUT_SECONDS}-second timeout
+- Always validate file paths before reading/writing
+- Handle errors gracefully and provide helpful error messages
+"""
+
+
+def build_generic_system_prompt() -> str:
+    """
+    OPTION B: Build an enhanced generic system prompt.
+    More concise than Option A, guides tool usage without explicit tool listing.
+    Lower token cost while maintaining strong tool awareness.
+    """
+    return f"""You are a highly knowledgeable programming assistant with access to powerful tools for file operations and command execution.
+
+You have the ability to:
+- Read and analyze file contents to understand code and configuration
+- Write and create files to implement solutions
+- Execute shell commands to verify system state and run scripts
+
+When answering questions:
+- Use tools proactively to examine files, run commands, and verify system state when helpful
+- Read relevant files before suggesting changes to understand context fully
+- Provide clear, concise, and actionable explanations
+- Suggest follow-up questions at the end of your response for deeper learning
+
+Key constraints:
+- Bash commands have a {BASH_TIMEOUT_SECONDS}-second timeout for safety
+- Always validate paths and handle errors gracefully
+- Be strategic about tool use—don't overuse when a direct answer suffices
+"""

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Literal, cast
 from openai import OpenAI
 from dotenv import load_dotenv
 from rich.console import Console
-from app.tools import TOOL_SPECS, execute_tool_calls
+from app.tools import TOOL_SPECS, execute_tool_calls, build_generic_system_prompt, build_dynamic_system_prompt
 from app.ui import APP_CONSOLE, LOG_CONSOLE, ASSISTANT_HEADER_STYLE, USER_PROMPT_STYLE, print_usage
 from app.models import FatalAgentError, RecoverableAgentError, validate_and_append_message
 
@@ -26,7 +26,15 @@ BASE_URL = os.getenv("MY_GEN_ASSIST_BASE_URL")
 MODEL = os.getenv("MY_GEN_ASSIST_MODEL", "myGenAssist,claude-sonnet-4.6-azure")
 
 MAX_CONSECUTIVE_RECOVERABLE_ERRORS = 3
-SYSTEM_PROMPT = "You are a helpful assistant that can use tools to answer the user's question. At the end of your final respose, provide suggestions for follow up questions the user can ask to learn more about the topic."
+
+# System prompt selection:
+# Option A (Dynamic): Automatically generated from TOOL_SPECS, updates when tools change
+#   SYSTEM_PROMPT = build_dynamic_system_prompt(TOOL_SPECS)
+# Option B (Generic): Concise, lower token cost, still guides tool usage
+#   SYSTEM_PROMPT = build_generic_system_prompt()
+
+# Currently using Option B (Generic prompt)
+SYSTEM_PROMPT = build_generic_system_prompt()
 
 def build_initial_messages() -> list[ChatCompletionMessageParam]:
     """Create a fresh conversation history containing only the system prompt."""
