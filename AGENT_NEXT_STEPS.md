@@ -78,17 +78,23 @@ Use this checklist to implement features safely in order. We will complete one i
 
 ## Phase 5: Skills Layer (After Compaction + Summary)
 
-- [ ] Define initial skills catalog
+- [x] Define initial skills catalog
   - Example: `explain`, `code-edit`, `debug`, `bash-help`.
   - For each skill, define intent + behavior contract.
+  - Implemented in `app/skills.py` with SKILLS_CATALOG dict
+  - Tested skill detection with various user inputs
 
-- [ ] Add lightweight skill router
+- [x] Add lightweight skill router
   - Route user input to a skill by intent keywords/heuristics.
   - Fall back to default assistant behavior.
+  - Implemented in `app/router.py` with route_user_input()
+  - build_skill_aware_system_prompt() composes skills with base prompt
 
-- [ ] Add skill-specific system instruction snippets
+- [x] Add skill-specific system instruction snippets
   - Keep snippets short and composable.
   - Apply only the selected skill context.
+  - Each Skill has `context` field with instructions (2-4 lines each)
+  - Router appends [ACTIVE SKILL:] section only for detected skill
 
 ## Phase 6: Validation and Hardening
 
