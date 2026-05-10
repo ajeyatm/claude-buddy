@@ -70,6 +70,12 @@ Use this checklist to implement features safely in order. We will complete one i
   - Avoid summarizing every single turn.
   - Uses `has_summary()` to skip redundant regeneration.
 
+**✅ PHASE 4 COMPLETE** — Tested with SOFT_TOKEN_LIMIT=4000, HARD_TOKEN_LIMIT=5000:
+  - Summary generated and injected after compaction
+  - 32.8% token reduction (9830 → 6604 tokens)
+  - 2 turns dropped, 3 recent turns preserved
+  - Agent continues coherently with summary context
+
 ## Phase 5: Skills Layer (After Compaction + Summary)
 
 - [ ] Define initial skills catalog
